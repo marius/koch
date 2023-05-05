@@ -1,0 +1,19 @@
+name: Tests and Rubocop
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  rake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
+      - run: bundle exec rake

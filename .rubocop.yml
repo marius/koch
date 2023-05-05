@@ -1,0 +1,31 @@
+require: rubocop-rake
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 2.7
+
+Style/StringLiterals:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Style/FormatStringToken:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 120
+
+Metrics/AbcSize:
+  Max: 24
+
+Metrics/MethodLength:
+  Max: 25
+
+Gemspec/RequireMFA:
+  Enabled: false
+
+Style/ClassVars:
+  Enabled: false

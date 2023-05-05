@@ -1,0 +1,152 @@
+# vi: ft=ruby
+
+# require 'yaml' # You can also use toml, jsonnet, or whatever you want.
+# This file is not in the repository, but already on the machine.
+# secrets = YAML.load_file "/etc/secrets.yaml"
+# password = secrets["postfix"]["password"]
+
+# Generic
+
+group "people" do
+  gid 887
+end
+user "marius" do
+  uid 887
+  gid 887
+  system_user true
+  home "/nonexistent"
+  shell "/usr/sbin/nologin"
+end
+
+package "xz-utils"
+if ubuntu?
+  delete do
+    snap_package "lxd"
+  end
+end
+
+# Backups
+
+if debian?
+  package "restic"
+else
+  snap_package "restic"
+end
+
+file "/etc/resticenv" do
+  mode "0700"
+  contents <<~EOT
+    export RESTIC_PASSWORD=test123
+    export RESTIC_REPOSITORY=/restic-repo
+    export RESTIC_CACHE_DIR=/var/cache/restic
+  EOT
+end
+
+directory "/restic-repo" do
+  on_change "echo Restic repository created."
+end
+unless File.exist? "/restic-repo/config"
+  run ". /etc/resticenv; restic init --repo /restic-repo"
+end
+
+file "/etc/backup_exclude" do
+  contents <<~EOT
+    /boot/*
+    /dev/*
+    /home/*/.bash_history
+    /home/*/.cache/*
+    /home/*/.local/share/Trash
+    /home/*/.mozilla/firefox/*/Cache
+    /lib/modules/*/volatile/.mounted
+    /media/*
+    /mnt/*
+    /proc/*
+    /restic-repo
+    /run/*
+    /tmp/*
+    /usr/lib/firmware/*
+    /usr/lib/modules/*
+    /snap/*
+    /swap.img
+    /sys/*
+    /vagrant/*
+    /var/cache/*
+    /var/lib/snapd/snaps/*
+    /var/lock/*
+    /var/run/*
+    /var/tmp/*
+    /var/lib/lxcfs/*
+  EOT
+end
+
+file "/usr/libexec/backup" do
+  mode "0700"
+  contents <<~EOT
+    #!/bin/bash
+
+    set -Eeuxo pipefail
+
+    source /etc/resticenv
+
+    export RESTIC_PROGRESS_FPS=0.05
+    PARAMS='--limit-download=4000 --limit-upload=4000 --verbose'
+
+    # Stupid cat hack is needed for stdout to show up in the systemd journal
+    restic $PARAMS backup / --exclude-file=/etc/backup_exclude 2>&1 | cat
+    restic $PARAMS forget --prune --keep-daily=7 --keep-weekly=5 --keep-monthly=6 2>&1 | cat
+  EOT
+end
+
+systemd_timer_service "backup" do
+  timer "OnCalendar=07:37"
+  contents <<~EOT
+    [Unit]
+    Description=Backup this machine
+
+    [Service]
+    Type=oneshot
+    ExecStart=/usr/libexec/backup
+  EOT
+end
+
+# Webserver
+
+package "nginx"
+delete do
+  file "/etc/nginx/sites-enabled/default" do
+    reload "nginx"
+  end
+end
+
+directory "/var/www/example.com"
+file "/etc/nginx/sites-enabled/example.com" do
+  contents File.read("example.com")
+  reload "nginx"
+  on_change "echo Some other stuff could happen here"
+end
+
+# A Systemd service
+
+systemd_service "helloer" do
+  contents <<~EOT
+    [Unit]
+    Description=Unit description
+
+    [Service]
+    Type=oneshot
+    ExecStart=/usr/bin/echo Hello
+
+    [Install]
+    WantedBy=multi-user.target
+  EOT
+end
+
+run "echo Top of the morning to you!"
+
+unless Dir.exist? "/etc/letsencrypt/live/example.com"
+  run "echo certbot ..."
+end
+
+swapfile "/swapfile" do
+  size "2G"
+end

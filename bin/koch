@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "thor"
+require_relative "../lib/koch"
+
+# KochCLI is the glue between the commandline and the actual Koch implementation
+class KochCLI < Thor
+  class_option :verbose, type: :boolean, aliases: "-v"
+  class_option :"dry-run", type: :boolean, aliases: "-d", default: true
+
+  desc "apply", "Apply a Rezeptfile to the local machine"
+  option :rezeptfile, aliases: "-f", default: "Rezeptfile"
+  def apply
+    logger.level = if options[:verbose]
+                     Logger::DEBUG
+                   else
+                     Logger::INFO
+                   end
+    @@dry_run = options[:"dry-run"]
+    r = Koch::Runner.new options[:rezeptfile]
+    r.go
+  end
+  default_task :apply
+end
+
+KochCLI.start(ARGV)
