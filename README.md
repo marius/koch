@@ -42,9 +42,7 @@ sudo koch
 
   - Ubuntu 22.04 (amd64)
   - Debian 11 (amd64)
-  - End of list
 
 ## TODO
 
   - [ ] Interactive mode, ask about each change
-  - [ ] publish to rubygems
