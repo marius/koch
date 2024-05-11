@@ -26,7 +26,7 @@ module Koch
     def installed_packages
       return @installed_packages if @installed_packages
 
-      @installed_packages = `snap list`.lines[1..].map { |pkg| pkg.split[0] }
+      @installed_packages = `snap list`.lines.drop(1).map { |pkg| pkg.split[0] }
       debug "Installed snap packages: "
       debug @installed_packages.join(" ")
       @installed_packages
