@@ -16,6 +16,13 @@ Vagrant.configure("2") do |config|
   # boxes at https://vagrantcloud.com/search.
   # config.vm.box = "generic/ubuntu2204"
 
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.cpus = 1
+    libvirt.memory = 1024
+    # Shared memory is likely needed for virtiofs
+    libvirt.memorybacking :access, mode: "shared"
+  end
+
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
@@ -45,7 +52,7 @@ Vagrant.configure("2") do |config|
   # the path on the host to the actual folder. The second argument is
   # the path on the guest to mount the folder. And the optional third
   # argument is a set of non-required options.
-  config.vm.synced_folder ".", "/vagrant", nfs_version: 4, nfs_udp: false
+  config.vm.synced_folder ".", "/vagrant", type: "virtiofs"
 
   # Provider-specific configuration so you can fine-tune various
   # backing providers for Vagrant. These expose provider-specific options.
@@ -74,11 +81,19 @@ Vagrant.configure("2") do |config|
     printf -- "---\\nrestic:\\n  password: test123\\n" >/etc/secrets.yaml
   SHELL
 
-  config.vm.define "ubuntu", primary: true do |ubuntu|
+  config.vm.define "ubuntu2204", primary: true do |ubuntu|
     ubuntu.vm.box = "generic/ubuntu2204"
   end
 
-  config.vm.define "debian" do |debian|
-    debian.vm.box = "debian/bullseye64"
+  config.vm.define "ubuntu2404" do |ubuntu|
+    ubuntu.vm.box = "bento/ubuntu-24.04"
+  end
+
+  config.vm.define "debian11" do |debian|
+    debian.vm.box = "generic/debian11"
+  end
+
+  config.vm.define "debian12" do |debian|
+    debian.vm.box = "generic/debian12"
   end
 end

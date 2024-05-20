@@ -31,7 +31,7 @@ a bunch of convenience functions. Feel free to use all the Ruby you want.
 ## Usage
 
 ```
-sudo apt -y install git
+sudo apt -y install build-essential git ruby-dev zlib1g-dev
 sudo gem install koch
 git clone git@github.com:example/machine.git
 cd machine
@@ -41,7 +41,9 @@ sudo koch
 ## Supported platforms
 
   - Ubuntu 22.04 (amd64)
+  - Ubuntu 24.04 (amd64)
   - Debian 11 (amd64)
+  - Debian 12 (amd64)
 
 ## TODO
 
