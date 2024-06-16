@@ -79,7 +79,7 @@ module Koch
       rescue Errno::ENOENT, Errno::EISDIR
         fatal "Did not find a file called #{@rezeptfile} in the current directory: #{Dir.pwd}"
       end
-      instance_eval(rezepte)
+      instance_eval(rezepte, @rezeptfile)
     end
 
     def apply!
