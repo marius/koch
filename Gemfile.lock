@@ -53,7 +53,7 @@ GEM
     rb-inotify (0.10.1)
       ffi (~> 1.0)
     regexp_parser (2.7.0)
-    rexml (3.3.2)
+    rexml (3.3.6)
       strscan
     rubocop (1.48.1)
       json (~> 2.3)
