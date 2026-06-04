@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # koch-vm — spin up throwaway KVM/libvirt VMs to test koch for real, across the
-# supported Debian/Ubuntu matrix. Replaces the old Vagrant setup. It wraps
+# supported Debian/Ubuntu matrix. It wraps
 # virt-install / virsh / qemu-img and provisions guests with cloud-init using
 # upstream cloud images. The repo is shared into the guest at /koch via virtiofs.
 #

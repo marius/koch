@@ -69,7 +69,6 @@ file "/etc/backup_exclude" do
     /snap/*
     /swap.img
     /sys/*
-    /vagrant/*
     /var/cache/*
     /var/lib/snapd/snaps/*
     /var/lock/*
