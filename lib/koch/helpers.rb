@@ -21,7 +21,7 @@ module Koch
     end
 
     def diff(old, new)
-      Diffy::Diff.new(old, new, include_diff_info: true, context: 3).to_s(:color).lines[2..].join
+      Diffy::Diff.new(old, new, include_diff_info: true, context: 3).to_s(:color).lines[2..]&.join
     end
 
     def debian?
