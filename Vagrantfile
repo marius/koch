@@ -96,4 +96,8 @@ Vagrant.configure("2") do |config| # rubocop:disable Metrics/BlockLength
   config.vm.define "debian12" do |debian|
     debian.vm.box = "generic/debian12"
   end
+
+  config.vm.define "debian13" do |debian|
+    debian.vm.box = "debian/trixie64"
+  end
 end
