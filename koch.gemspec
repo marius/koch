@@ -29,5 +29,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "ostruct", "~> 0.6"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rubocop", "~> 1.87"
+  spec.add_development_dependency "rubocop-minitest", "~> 0.36"
   spec.add_development_dependency "rubocop-rake", "~> 0.7"
 end

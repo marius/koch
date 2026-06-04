@@ -22,9 +22,9 @@ class CreateFileTest < Minitest::Test
     files << file
     files.apply!
 
-    assert_equal files.reloads, ["reload_service"]
-    assert_equal files.restarts, ["restart_service"]
-    assert_equal files.on_changes, ["echo hello"]
+    assert_equal ["reload_service"], files.reloads
+    assert_equal ["restart_service"], files.restarts
+    assert_equal ["echo hello"], files.on_changes
 
     file.verify
   end
@@ -73,6 +73,7 @@ class CreateFileTest < Minitest::Test
         end
       end
     end
+
     assert_equal "reload_service", @file.reload
   end
 
@@ -85,7 +86,7 @@ class CreateFileTest < Minitest::Test
       end
     end
 
-    assert !@file.changed
+    refute @file.changed
     assert_equal "reload_service", @file.reload
   end
 
