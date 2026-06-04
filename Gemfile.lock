@@ -6,7 +6,6 @@ PATH
       logger (~> 1.5)
       thor (~> 1.2)
       zeitwerk (~> 2.6)
-      zlib (~> 3.0)
 
 GEM
   remote: https://rubygems.org/
@@ -94,7 +93,6 @@ GEM
       unicode-emoji (~> 4.1)
     unicode-emoji (4.2.0)
     zeitwerk (2.8.2)
-    zlib (3.2.3)
 
 PLATFORMS
   x86_64-linux

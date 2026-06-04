@@ -31,7 +31,7 @@ a bunch of convenience functions. Feel free to use all the Ruby you want.
 ## Usage
 
 ```
-sudo apt -y install build-essential git ruby-dev zlib1g-dev
+sudo apt -y install git ruby
 sudo gem install koch
 git clone git@github.com:example/machine.git
 cd machine

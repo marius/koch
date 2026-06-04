@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "zlib"
 require_relative "resource"
 
 module Koch
@@ -10,8 +9,10 @@ module Koch
 
     def initialize(name)
       super
-      # Pick a pseudo-random time between 00:00 and 06:00 (360 minutes)
-      hash = Zlib.crc32(name) % 360
+      # Pick a pseudo-random time between 00:00 and 06:00 (360 minutes).
+      # A small deterministic string hash (must be stable across runs so the
+      # timer stays idempotent) avoids depending on zlib for one crc32 call.
+      hash = name.each_byte.reduce(0) { |acc, byte| (acc * 31) + byte } % 360
       hour = hash / 60
       minute = hash % 60
       @timer = format("OnCalendar=%02d:%02d", hour, minute)

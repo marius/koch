@@ -2,8 +2,8 @@
 # Provisioning template for koch test VMs. Rendered by vm/koch-vm:
 # __SSH_PUBKEY__ is replaced with the contents of vm/id_koch.pub.
 #
-# This mirrors the old Vagrant shell provisioner: install the build deps koch's
-# native gem dependencies need, drop a dummy /etc/secrets.yaml so the example
+# This mirrors the old Vagrant shell provisioner: install Ruby so koch can run,
+# drop a dummy /etc/secrets.yaml so the example
 # Rezeptfile works, and mount the repo (shared via virtiofs, tag "koch") at
 # /koch. The koch gem itself is installed by `vm/koch-vm apply`, not here, so
 # koch can be re-tested without reprovisioning the VM.
@@ -16,9 +16,7 @@ users:
       - __SSH_PUBKEY__
 package_update: true
 packages:
-  - build-essential
-  - zlib1g-dev
-  - ruby-dev
+  - ruby
 write_files:
   - path: /etc/secrets.yaml
     permissions: "0600"
