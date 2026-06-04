@@ -41,10 +41,10 @@ module Koch
   end
 
   # Installs a snap package
-  class InstallSnapPackage < AbstractPackage
+  class InstallSnapPackage < AbstractSnapPackage
   end
 
   # Deletes a snap package
-  class DeleteSnapPackage < AbstractPackage
+  class DeleteSnapPackage < AbstractSnapPackage
   end
 end
