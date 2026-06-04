@@ -1,3 +1,7 @@
 *.gem
-/.vagrant/
 CLAUDE.md
+/vm/images/
+/vm/disks/
+/vm/id_koch
+/vm/id_koch.pub
+/vm/known_hosts

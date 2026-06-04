@@ -17,7 +17,7 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
 
 Fully **backup** any machine you run this on! This is alpha grade software and
 might cause havoc, esp when run with root privileges!
-I suggest you use Vagrant to try this out.
+I suggest you use the throwaway KVM/libvirt VMs (`vm/koch-vm`) to try this out.
 
 ## Status
 
@@ -50,4 +50,3 @@ sudo koch
   - [ ] Interactive mode, ask about each change
   - [ ] Implement file links
   - [ ] Capture PWD when create a Koch::File object, to make Dir.chdir "/a" do file "bla" end work
-  - [ ] Replace Vagrant

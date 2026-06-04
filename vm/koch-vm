@@ -1,0 +1,308 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# koch-vm — spin up throwaway KVM/libvirt VMs to test koch for real, across the
+# supported Debian/Ubuntu matrix. Replaces the old Vagrant setup. It wraps
+# virt-install / virsh / qemu-img and provisions guests with cloud-init using
+# upstream cloud images. The repo is shared into the guest at /koch via virtiofs.
+#
+# Usage:
+#   vm/koch-vm up      debian12            # download image, boot, provision
+#   vm/koch-vm ssh     debian12            # interactive shell in the VM
+#   vm/koch-vm apply   debian12            # gem install + run koch (dry-run)
+#   vm/koch-vm apply   debian12 --no-dry-run   # real run against example/Rezeptfile
+#   vm/koch-vm reset   debian12            # recreate from the cached base image
+#   vm/koch-vm destroy debian12            # tear down one VM
+#   vm/koch-vm destroy --all               # tear down all koch VMs
+#   vm/koch-vm list                        # show state of all koch VMs
+
+require "thor"
+require "fileutils"
+require "shellwords"
+
+VM_DIR = __dir__
+ROOT = File.expand_path("..", VM_DIR)
+require File.join(ROOT, "lib", "koch", "version")
+
+class KochVM < Thor # rubocop:disable Metrics/ClassLength
+  IMAGES_DIR = File.join(VM_DIR, "images")
+  DISKS_DIR = File.join(VM_DIR, "disks")
+  SSH_KEY = File.join(VM_DIR, "id_koch")
+  KNOWN_HOSTS = File.join(VM_DIR, "known_hosts")
+  USER_DATA_TEMPLATE = File.join(VM_DIR, "cloud-init", "user-data")
+  LIBVIRT_URI = "qemu:///system"
+  SSH_USER = "koch"
+
+  # distro key => upstream cloud image + libosinfo short-id. The osinfo name is
+  # only a hint for sensible device defaults (require=off so an unknown id just
+  # warns rather than failing — handy for very fresh releases).
+  DISTROS = {
+    "ubuntu2404" => {
+      url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img",
+      osinfo: "ubuntu24.04"
+    },
+    # Ubuntu 26.04 LTS == "resolute" (questing=25.10, resolute=26.04, stonking=26.10).
+    "ubuntu2604" => {
+      url: "https://cloud-images.ubuntu.com/resolute/current/resolute-server-cloudimg-amd64.img",
+      osinfo: "ubuntu24.04"
+    },
+    "debian12" => {
+      url: "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2",
+      osinfo: "debian12"
+    },
+    "debian13" => {
+      url: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2",
+      osinfo: "debian13"
+    }
+  }.freeze
+
+  def self.exit_on_failure?
+    true
+  end
+
+  # Let `apply debian12 --no-dry-run -v` pass the trailing koch flags through
+  # instead of having Thor try (and fail) to parse them as its own options.
+  stop_on_unknown_option! :apply
+
+  desc "up DISTRO", "Download the image, boot a fresh VM for DISTRO and provision it"
+  def up(distro)
+    validate!(distro)
+    if domain_exists?(distro)
+      say "#{domain(distro)} already exists — use `reset` to recreate or `ssh` to connect.", :yellow
+      return
+    end
+    ensure_dirs
+    ensure_key
+    download_image(distro)
+    create_overlay(distro)
+    virt_install(distro)
+    say "Waiting for #{domain(distro)} to boot...", :green
+    ip = wait_for_ip(distro)
+    say "Waiting for cloud-init to finish provisioning (this installs build deps)...", :green
+    wait_for_provisioning(ip)
+    say "VM ready at #{ip}.  Next: #{$PROGRAM_NAME} apply #{distro}", :green
+  end
+
+  desc "ssh DISTRO", "Open an interactive shell in the VM"
+  def ssh(distro)
+    validate!(distro)
+    ip = running_ip(distro)
+    exec(*ssh_base, "#{SSH_USER}@#{ip}")
+  end
+
+  desc "apply DISTRO [KOCH_ARGS...]", "Install the built koch gem in the VM and run it against example/Rezeptfile"
+  def apply(distro, *koch_args)
+    validate!(distro)
+    gem = gem_file
+    ip = running_ip(distro)
+    flags = koch_args.map { |a| Shellwords.escape(a) }.join(" ")
+    remote = "sudo gem install --no-document /koch/#{File.basename(gem)} && " \
+             "cd /koch/example && sudo koch #{flags}"
+    say "Running koch in #{domain(distro)} (#{flags.empty? ? 'dry-run' : flags})...", :green
+    exec(*ssh_base, "-t", "#{SSH_USER}@#{ip}", remote)
+  end
+
+  desc "reset DISTRO", "Destroy the VM and recreate it from the cached base image"
+  def reset(distro)
+    validate!(distro)
+    destroy_domain(distro) if domain_exists?(distro)
+    up(distro)
+  end
+
+  desc "destroy [DISTRO]", "Destroy one VM, or all koch VMs with --all"
+  option :all, type: :boolean, default: false, desc: "Destroy every koch VM"
+  def destroy(distro = nil)
+    if options[:all]
+      DISTROS.keys.each { |d| destroy_domain(d) if domain_exists?(d) }
+    else
+      abort "Specify a distro (#{DISTROS.keys.join(', ')}) or --all" unless distro
+      validate!(distro)
+      destroy_domain(distro)
+    end
+  end
+
+  desc "list", "Show the state of all koch VMs"
+  def list
+    DISTROS.keys.each do |d|
+      state = domain_exists?(d) ? `virsh -c #{LIBVIRT_URI} domstate #{domain(d)} 2>/dev/null`.strip : "absent"
+      say format("%-12s %s", d, state)
+    end
+  end
+
+  private
+
+  def domain(distro)
+    "koch-#{distro}"
+  end
+
+  def image_path(distro)
+    File.join(IMAGES_DIR, "#{distro}.img")
+  end
+
+  def overlay_path(distro)
+    File.join(DISKS_DIR, "#{distro}.qcow2")
+  end
+
+  def validate!(distro)
+    return if DISTROS.key?(distro)
+
+    abort "Unknown distro #{distro.inspect}. Known: #{DISTROS.keys.join(', ')}"
+  end
+
+  def ensure_dirs
+    FileUtils.mkdir_p(IMAGES_DIR)
+    FileUtils.mkdir_p(DISKS_DIR)
+  end
+
+  def ensure_key
+    return if File.exist?(SSH_KEY)
+
+    say "Generating SSH keypair (#{rel(SSH_KEY)})...", :green
+    run!("ssh-keygen", "-t", "ed25519", "-N", "", "-C", "koch-vm", "-f", SSH_KEY)
+  end
+
+  def download_image(distro)
+    dest = image_path(distro)
+    return if File.exist?(dest)
+
+    say "Downloading base image for #{distro}...", :green
+    run!("curl", "-fL", "--retry", "3", "-o", dest, DISTROS[distro][:url])
+  end
+
+  def create_overlay(distro)
+    run!("qemu-img", "create", "-q", "-f", "qcow2",
+         "-b", image_path(distro), "-F", "qcow2", overlay_path(distro), "10G")
+  end
+
+  def virt_install(distro)
+    run!("virt-install",
+         "--connect", LIBVIRT_URI,
+         "--name", domain(distro),
+         "--memory", "2048",
+         "--vcpus", "1",
+         "--cpu", "host-passthrough",
+         "--import",
+         "--disk", "path=#{overlay_path(distro)},format=qcow2,bus=virtio",
+         # Attach the NoCloud seed as a read-only virtio disk, NOT a cdrom:
+         # cloud-init's ds-identify in the Debian/Ubuntu cloud images reliably
+         # scans virtio block devices for the CIDATA label but can miss a SATA
+         # cdrom early in boot (leaving the guest unprovisioned).
+         "--disk", "path=#{build_seed(distro)},format=raw,bus=virtio,readonly=on",
+         "--osinfo", "name=#{DISTROS[distro][:osinfo]},require=off",
+         "--memorybacking", "access.mode=shared",
+         "--filesystem", "source.dir=#{ROOT},target.dir=koch,driver.type=virtiofs",
+         "--network", "network=default,model=virtio",
+         "--graphics", "none",
+         "--noautoconsole")
+  end
+
+  # Build a cloud-init NoCloud seed ISO (volume label CIDATA, holding user-data +
+  # meta-data) for the guest to pick up. We build it ourselves rather than via
+  # `virt-install --cloud-init` so the label is exactly what cloud-init's
+  # ds-identify looks for — otherwise cloud-init finds no datasource and disables
+  # itself, leaving the guest unprovisioned.
+  def build_seed(distro)
+    pubkey = File.read("#{SSH_KEY}.pub").strip
+    stage = File.join(DISKS_DIR, "#{distro}-cidata")
+    FileUtils.mkdir_p(stage)
+    File.write(File.join(stage, "user-data"),
+               File.read(USER_DATA_TEMPLATE).gsub("__SSH_PUBKEY__", pubkey))
+    File.write(File.join(stage, "meta-data"),
+               "instance-id: #{domain(distro)}\nlocal-hostname: #{domain(distro)}\n")
+    run!("xorriso", "-as", "mkisofs", "-quiet", "-V", "CIDATA", "-J", "-r",
+         "-o", seed_path(distro), stage)
+    seed_path(distro)
+  end
+
+  def seed_path(distro)
+    File.join(DISKS_DIR, "#{distro}-seed.iso")
+  end
+
+  def domain_exists?(distro)
+    system("virsh", "-c", LIBVIRT_URI, "dominfo", domain(distro),
+           out: File::NULL, err: File::NULL)
+  end
+
+  def destroy_domain(distro)
+    name = domain(distro)
+    say "Destroying #{name}...", :yellow
+    system("virsh", "-c", LIBVIRT_URI, "destroy", name, out: File::NULL, err: File::NULL)
+    system("virsh", "-c", LIBVIRT_URI, "undefine", name, "--remove-all-storage",
+           out: File::NULL, err: File::NULL)
+    FileUtils.rm_f(overlay_path(distro))
+    FileUtils.rm_f(seed_path(distro))
+    FileUtils.rm_rf(File.join(DISKS_DIR, "#{distro}-cidata"))
+  end
+
+  # Look up the guest's DHCP lease by its MAC (more reliable than
+  # `domifaddr --source lease`, which can come back empty); nil until it leases.
+  def guest_ip(distro)
+    mac = `virsh -c #{LIBVIRT_URI} dumpxml #{domain(distro)} 2>/dev/null`[/mac address='([0-9a-f:]+)'/, 1]
+    return unless mac
+
+    out = `virsh -c #{LIBVIRT_URI} net-dhcp-leases default --mac #{mac} 2>/dev/null`
+    out[%r{(\d+\.\d+\.\d+\.\d+)/\d+}, 1]
+  end
+
+  def wait_for_ip(distro, timeout: 180)
+    deadline = Time.now + timeout
+    loop do
+      ip = guest_ip(distro)
+      return ip if ip
+      abort "Timed out waiting for #{domain(distro)} to get an IP" if Time.now > deadline
+
+      sleep 2
+    end
+  end
+
+  # Block until the koch user is reachable over SSH (cloud-init created it) and
+  # cloud-init has fully finished (so build deps are installed before `apply`).
+  def wait_for_provisioning(ip, timeout: 600)
+    deadline = Time.now + timeout
+    until ssh_ok?(ip)
+      abort "Timed out waiting for cloud-init to provision #{ip}" if Time.now > deadline
+
+      sleep 5
+    end
+    system(*ssh_base, "#{SSH_USER}@#{ip}", "cloud-init status --wait >/dev/null 2>&1 || true",
+           out: File::NULL, err: File::NULL)
+  end
+
+  def ssh_ok?(ip)
+    system(*ssh_base, "-o", "BatchMode=yes", "#{SSH_USER}@#{ip}", "true",
+           out: File::NULL, err: File::NULL)
+  end
+
+  # The distro of a running VM, returning its IP (errors out if not up).
+  def running_ip(distro)
+    abort "#{domain(distro)} does not exist — run `#{$PROGRAM_NAME} up #{distro}` first." unless domain_exists?(distro)
+
+    guest_ip(distro) || abort("#{domain(distro)} has no IP yet — is it still booting?")
+  end
+
+  def ssh_base
+    ["ssh", "-i", SSH_KEY,
+     "-o", "StrictHostKeyChecking=no",
+     "-o", "UserKnownHostsFile=#{KNOWN_HOSTS}",
+     "-o", "ConnectTimeout=10",
+     "-o", "LogLevel=ERROR"]
+  end
+
+  def gem_file
+    path = File.join(ROOT, "koch-#{Koch::VERSION}.gem")
+    unless File.exist?(path)
+      abort "#{rel(path)} not found. Build it first:\n  cd #{ROOT} && gem build koch.gemspec"
+    end
+    path
+  end
+
+  def rel(path)
+    path.sub("#{ROOT}/", "")
+  end
+
+  def run!(*cmd)
+    abort "Command failed: #{cmd.shelljoin}" unless system(*cmd)
+  end
+end
+
+KochVM.start(ARGV)
