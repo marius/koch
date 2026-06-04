@@ -40,11 +40,14 @@ sudo koch
 
 ## Supported platforms
 
-  - Ubuntu 22.04 (amd64)
   - Ubuntu 24.04 (amd64)
-  - Debian 11 (amd64)
+  - Ubuntu 26.04 (amd64)
   - Debian 12 (amd64)
+  - Debian 13 (amd64)
 
 ## TODO
 
   - [ ] Interactive mode, ask about each change
+  - [ ] Implement file links
+  - [ ] Capture PWD when create a Koch::File object, to make Dir.chdir "/a" do file "bla" end work
+  - [ ] Replace Vagrant
