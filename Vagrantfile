@@ -81,16 +81,12 @@ Vagrant.configure("2") do |config| # rubocop:disable Metrics/BlockLength
     printf -- "---\\nrestic:\\n  password: test123\\n" >/etc/secrets.yaml
   SHELL
 
-  config.vm.define "ubuntu2204", primary: true do |ubuntu|
-    ubuntu.vm.box = "generic/ubuntu2204"
-  end
-
-  config.vm.define "ubuntu2404" do |ubuntu|
+  config.vm.define "ubuntu2404", primary: true do |ubuntu|
     ubuntu.vm.box = "bento/ubuntu-24.04"
   end
 
-  config.vm.define "debian11" do |debian|
-    debian.vm.box = "generic/debian11"
+  config.vm.define "ubuntu2604" do |ubuntu|
+    ubuntu.vm.box = "cloud-image/ubuntu-26.04"
   end
 
   config.vm.define "debian12" do |debian|
