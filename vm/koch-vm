@@ -8,6 +8,7 @@
 #
 # Usage:
 #   vm/koch-vm up      debian12            # download image, boot, provision
+#   vm/koch-vm console debian12            # serial console (Ctrl-] to detach)
 #   vm/koch-vm ssh     debian12            # interactive shell in the VM
 #   vm/koch-vm apply   debian12            # gem install + run koch (dry-run)
 #   vm/koch-vm apply   debian12 --no-dry-run   # real run against example/Rezeptfile
@@ -82,6 +83,12 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
     say "Waiting for cloud-init to finish provisioning (this installs build deps)...", :green
     wait_for_provisioning(ip)
     say "VM ready at #{ip}.  Next: #{$PROGRAM_NAME} apply #{distro}", :green
+  end
+
+  desc "console DISTRO", "Attach to the VM's serial console (Ctrl-] to detach)"
+  def console(distro)
+    validate!(distro)
+    exec("virsh", "-c", LIBVIRT_URI, "console", domain(distro))
   end
 
   desc "ssh DISTRO", "Open an interactive shell in the VM"
@@ -193,6 +200,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
          "--memorybacking", "access.mode=shared",
          "--filesystem", "source.dir=#{ROOT},target.dir=koch,driver.type=virtiofs",
          "--network", "network=default,model=virtio",
+         "--serial", "pty",
          "--graphics", "none",
          "--boot", "uefi",
          "--noautoconsole")
@@ -229,7 +237,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
     name = domain(distro)
     say "Destroying #{name}...", :yellow
     system("virsh", "-c", LIBVIRT_URI, "destroy", name, out: File::NULL, err: File::NULL)
-    system("virsh", "-c", LIBVIRT_URI, "undefine", name, "--remove-all-storage",
+    system("virsh", "-c", LIBVIRT_URI, "undefine", name, "--remove-all-storage", "--nvram",
            out: File::NULL, err: File::NULL)
     FileUtils.rm_f(overlay_path(distro))
     FileUtils.rm_f(seed_path(distro))
