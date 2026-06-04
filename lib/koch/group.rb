@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "etc"
+
 module Koch
   # Represents a Linux group
   class Group < Resource
