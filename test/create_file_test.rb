@@ -1,10 +1,17 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "minitest/mock"
 require_relative "../lib/koch"
 
-class PathTest < Minitest::Test
-  def test_file_expands_relative_name
+class CreateFileTest < Minitest::Test
+  def setup
+    @file = Koch::CreateFile.new "stubbed_file"
+    @file.contents "contents"
+    @file.reload "reload_service"
+  end
+
+  def test_expands_relative_name
     Dir.chdir "/tmp" do
       f = Koch::CreateFile.new "testfile"
 
@@ -12,24 +19,8 @@ class PathTest < Minitest::Test
     end
   end
 
-  def test_file_preserves_absolute_name
+  def test_preserves_absolute_name
     assert_equal "/etc/hosts", Koch::CreateFile.new("/etc/hosts").name
-  end
-
-  def test_directory_expands_relative_name
-    Dir.chdir "/tmp" do
-      d = Koch::CreateDirectory.new "testdir"
-
-      assert_equal "/tmp/testdir", d.name
-    end
-  end
-end
-
-class CreateFileTest < Minitest::Test
-  def setup
-    @file = Koch::CreateFile.new "stubbed_file"
-    @file.contents "contents"
-    @file.reload "reload_service"
   end
 
   def test_files_apply!
