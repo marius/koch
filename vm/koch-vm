@@ -194,6 +194,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
          "--filesystem", "source.dir=#{ROOT},target.dir=koch,driver.type=virtiofs",
          "--network", "network=default,model=virtio",
          "--graphics", "none",
+         "--boot", "uefi",
          "--noautoconsole")
   end
 
