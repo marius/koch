@@ -21,9 +21,10 @@ Gem::Specification.new do |spec|
   spec.add_dependency "logger", "~> 1.5"
   spec.add_dependency "thor", "~> 1.2"
   spec.add_dependency "zeitwerk", "~> 2.6"
-  spec.add_dependency "zlib", "~> 3.0.1"
+  spec.add_dependency "zlib", "~> 3.0"
   spec.add_development_dependency "guard", "~> 2.18"
-  spec.add_development_dependency "guard-minitest", "~> 2.4"
+  spec.add_development_dependency "guard-minitest", "~> 3.0"
+  spec.add_development_dependency "minitest", "~> 5.0"
   # ostruct stopped being a default gem in Ruby 3.5/4.0; rake still requires it.
   spec.add_development_dependency "ostruct", "~> 0.6"
   spec.add_development_dependency "rake", "~> 13.0"
