@@ -17,11 +17,11 @@ Gem::Specification.new do |spec|
   spec.files += Dir.glob("lib/**/*.rb")
   spec.executables = ["koch"]
 
-  spec.add_runtime_dependency "diffy", "~> 3.4"
-  spec.add_runtime_dependency "logger", "~> 1.5"
-  spec.add_runtime_dependency "thor", "~> 1.2"
-  spec.add_runtime_dependency "zeitwerk", "~> 2.6"
-  spec.add_runtime_dependency "zlib", "~> 1.1"
+  spec.add_dependency "diffy", "~> 3.4"
+  spec.add_dependency "logger", "~> 1.5"
+  spec.add_dependency "thor", "~> 1.2"
+  spec.add_dependency "zeitwerk", "~> 2.6"
+  spec.add_dependency "zlib", "~> 3.0.1"
   spec.add_development_dependency "guard", "~> 2.18"
   spec.add_development_dependency "guard-minitest", "~> 2.4"
   spec.add_development_dependency "rake", "~> 13.0"
