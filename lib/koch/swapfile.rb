@@ -3,6 +3,8 @@
 module Koch
   # Creates a single swap file
   class Swapfile < Resource
+    include CurrentDir
+
     dsl_writer :size
 
     def initialize(name)

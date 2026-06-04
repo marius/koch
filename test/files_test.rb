@@ -3,6 +3,28 @@
 require "minitest/autorun"
 require_relative "../lib/koch"
 
+class PathTest < Minitest::Test
+  def test_file_expands_relative_name
+    Dir.chdir "/tmp" do
+      f = Koch::CreateFile.new "testfile"
+
+      assert_equal "/tmp/testfile", f.name
+    end
+  end
+
+  def test_file_preserves_absolute_name
+    assert_equal "/etc/hosts", Koch::CreateFile.new("/etc/hosts").name
+  end
+
+  def test_directory_expands_relative_name
+    Dir.chdir "/tmp" do
+      d = Koch::CreateDirectory.new "testdir"
+
+      assert_equal "/tmp/testdir", d.name
+    end
+  end
+end
+
 class CreateFileTest < Minitest::Test
   def setup
     @file = Koch::CreateFile.new "stubbed_file"

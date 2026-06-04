@@ -49,4 +49,4 @@ sudo koch
 
   - [ ] Interactive mode, ask about each change
   - [ ] Implement file links
-  - [ ] Capture PWD when create a Koch::File object, to make Dir.chdir "/a" do file "bla" end work
+  - [x] Capture PWD when create a Koch::File object, to make Dir.chdir "/a" do file "bla" end work

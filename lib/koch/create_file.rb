@@ -3,6 +3,8 @@
 module Koch
   # Creates and/or changes a files' contents, mode, owner and/or group
   class CreateFile < Resource
+    include CurrentDir
+
     dsl_writer :mode, :contents, :owner, :group
 
     include Ogm

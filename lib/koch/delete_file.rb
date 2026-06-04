@@ -3,6 +3,8 @@
 module Koch
   # Deletes a file if it exists
   class DeleteFile < Resource
+    include CurrentDir
+
     def apply!
       unless File.exist? name
         debug "Not deleting file #{name}, it does not exist"

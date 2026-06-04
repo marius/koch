@@ -5,6 +5,8 @@ require "fileutils"
 module Koch
   # Creates a directory if it doesn't exist and/or changes its mode/owner/group
   class CreateDirectory < Resource
+    include CurrentDir
+
     dsl_writer :mode, :owner, :group
 
     include Ogm

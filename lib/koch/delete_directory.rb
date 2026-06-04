@@ -5,6 +5,8 @@ require "fileutils"
 module Koch
   # Deletes a directory if it exists
   class DeleteDirectory < Resource
+    include CurrentDir
+
     def apply!
       unless Dir.exist? name
         debug "Not deleting directory #{name}, it does not exist"
