@@ -1,4 +1,4 @@
-require: rubocop-rake
+plugins: rubocop-rake
 
 AllCops:
   NewCops: enable
@@ -25,6 +25,10 @@ Metrics/MethodLength:
   Max: 25
 
 Gemspec/RequireMFA:
+  Enabled: false
+
+# This project declares its development dependencies in the gemspec, not the Gemfile.
+Gemspec/DevelopmentDependencies:
   Enabled: false
 
 Style/ClassVars:

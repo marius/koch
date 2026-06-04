@@ -37,7 +37,7 @@ module Koch
       return if curr_mode == @mode
 
       @changed = true
-      maybe(format("Mode changed: #{name} old: %o new: %o", (curr_mode || 0), @mode)) do
+      maybe(format("Mode changed: #{name} old: %o new: %o", curr_mode || 0, @mode)) do
         File.chmod @mode, name
       end
     end

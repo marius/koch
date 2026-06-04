@@ -24,6 +24,7 @@ VM_DIR = __dir__
 ROOT = File.expand_path("..", VM_DIR)
 require File.join(ROOT, "lib", "koch", "version")
 
+# Thor CLI for booting throwaway KVM/libvirt VMs to test koch against real systems.
 class KochVM < Thor # rubocop:disable Metrics/ClassLength
   IMAGES_DIR = File.join(VM_DIR, "images")
   DISKS_DIR = File.join(VM_DIR, "disks")
@@ -98,7 +99,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
     flags = koch_args.map { |a| Shellwords.escape(a) }.join(" ")
     remote = "sudo gem install --no-document /koch/#{File.basename(gem)} && " \
              "cd /koch/example && sudo koch #{flags}"
-    say "Running koch in #{domain(distro)} (#{flags.empty? ? 'dry-run' : flags})...", :green
+    say "Running koch in #{domain(distro)} (#{flags.empty? ? "dry-run" : flags})...", :green
     exec(*ssh_base, "-t", "#{SSH_USER}@#{ip}", remote)
   end
 
@@ -113,9 +114,9 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
   option :all, type: :boolean, default: false, desc: "Destroy every koch VM"
   def destroy(distro = nil)
     if options[:all]
-      DISTROS.keys.each { |d| destroy_domain(d) if domain_exists?(d) }
+      DISTROS.each_key { |d| destroy_domain(d) if domain_exists?(d) }
     else
-      abort "Specify a distro (#{DISTROS.keys.join(', ')}) or --all" unless distro
+      abort "Specify a distro (#{DISTROS.keys.join(", ")}) or --all" unless distro
       validate!(distro)
       destroy_domain(distro)
     end
@@ -123,7 +124,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
 
   desc "list", "Show the state of all koch VMs"
   def list
-    DISTROS.keys.each do |d|
+    DISTROS.each_key do |d|
       state = domain_exists?(d) ? `virsh -c #{LIBVIRT_URI} domstate #{domain(d)} 2>/dev/null`.strip : "absent"
       say format("%-12s %s", d, state)
     end
@@ -146,7 +147,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
   def validate!(distro)
     return if DISTROS.key?(distro)
 
-    abort "Unknown distro #{distro.inspect}. Known: #{DISTROS.keys.join(', ')}"
+    abort "Unknown distro #{distro.inspect}. Known: #{DISTROS.keys.join(", ")}"
   end
 
   def ensure_dirs
@@ -249,6 +250,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
     loop do
       ip = guest_ip(distro)
       return ip if ip
+
       abort "Timed out waiting for #{domain(distro)} to get an IP" if Time.now > deadline
 
       sleep 2
@@ -290,9 +292,7 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
 
   def gem_file
     path = File.join(ROOT, "koch-#{Koch::VERSION}.gem")
-    unless File.exist?(path)
-      abort "#{rel(path)} not found. Build it first:\n  cd #{ROOT} && gem build koch.gemspec"
-    end
+    abort "#{rel(path)} not found. Build it first:\n  cd #{ROOT} && gem build koch.gemspec" unless File.exist?(path)
     path
   end
 
