@@ -26,10 +26,10 @@ else
 fi
 
 # --- Package install ---
-if dpkg -l bc 2>/dev/null | grep -q '^ii'; then
-  pass "package bc installed"
+if dpkg -l wamerican 2>/dev/null | grep -q '^ii'; then
+  pass "package wamerican installed"
 else
-  fail "package bc not installed"
+  fail "package wamerican not installed"
 fi
 
 # --- Package delete ---

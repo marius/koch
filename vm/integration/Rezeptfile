@@ -16,9 +16,9 @@ user "koch-test-user" do
   shell "/usr/sbin/nologin"
 end
 
-# Packages — bc is tiny and absent from all four cloud images.
+# Packages — wamerican is tiny and absent from all four cloud images.
 # nano is pre-installed on Debian/Ubuntu cloud images; delete it.
-package "bc"
+package "wamerican"
 
 delete do
   package "nano"
