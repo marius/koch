@@ -12,6 +12,8 @@
 #   vm/koch-vm ssh     debian12            # interactive shell in the VM
 #   vm/koch-vm apply   debian12            # gem install + run koch (dry-run)
 #   vm/koch-vm apply   debian12 --no-dry-run   # real run against example/Rezeptfile
+#   vm/koch-vm test    debian12            # integration tests + idempotency check
+#   vm/koch-vm test                        # test all distros
 #   vm/koch-vm reset   debian12            # recreate from the cached base image
 #   vm/koch-vm destroy debian12            # tear down one VM
 #   vm/koch-vm destroy --all               # tear down all koch VMs
@@ -108,6 +110,15 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
              "cd /koch/example && sudo koch #{flags}"
     say "Running koch in #{domain(distro)} (#{flags.empty? ? "dry-run" : flags})...", :green
     exec(*ssh_base, "-t", "#{SSH_USER}@#{ip}", remote)
+  end
+
+  desc "test [DISTRO]", "Apply the integration Rezeptfile, assert system state, and verify idempotency"
+  option :reset, type: :boolean, default: false, desc: "Reset the VM to a clean state before testing"
+  def test(distro = nil)
+    targets = distro ? [distro] : DISTROS.keys
+    targets.each { |d| validate!(d) }
+    failures = targets.reject { |d| test_distro?(d) }
+    abort "Integration tests failed: #{failures.join(", ")}" unless failures.empty?
   end
 
   desc "reset DISTRO", "Destroy the VM and recreate it from the cached base image"
@@ -309,8 +320,50 @@ class KochVM < Thor # rubocop:disable Metrics/ClassLength
     path.sub("#{ROOT}/", "")
   end
 
+  def domain_running?(distro)
+    `virsh -c #{LIBVIRT_URI} domstate #{domain(distro)} 2>/dev/null`.strip == "running"
+  end
+
+  def ensure_running(distro)
+    if !domain_exists?(distro)
+      up(distro)
+    elsif !domain_running?(distro)
+      say "Starting #{domain(distro)}...", :green
+      run!("virsh", "-c", LIBVIRT_URI, "start", domain(distro))
+      ip = wait_for_ip(distro)
+      wait_for_provisioning(ip)
+    end
+  end
+
   def run!(*cmd)
     abort "Command failed: #{cmd.shelljoin}" unless system(*cmd)
+  end
+
+  def test_distro?(distro)
+    reset(distro) if options[:reset]
+    ensure_running(distro)
+    if run_integration_test(distro)
+      say "PASS #{distro}", :green
+      true
+    else
+      say "FAIL #{distro}", :red
+      false
+    end
+  end
+
+  def ssh_run(ip, cmd)
+    system(*ssh_base, "#{SSH_USER}@#{ip}", cmd)
+  end
+
+  def run_integration_test(distro)
+    ip = running_ip(distro)
+    rezept = "/koch/vm/integration/Rezeptfile"
+    seed = "mkdir -p /tmp/koch-test && touch /tmp/koch-test/to-delete && mkdir -p /tmp/koch-test/to-delete-dir"
+    ssh_run(ip, "sudo gem install --no-document /koch/#{File.basename(gem_file)}") &&
+      ssh_run(ip, seed) &&
+      ssh_run(ip, "sudo koch --no-dry-run -f #{rezept}") &&
+      ssh_run(ip, "sudo bash /koch/vm/integration/assert.sh") &&
+      ssh_run(ip, "sudo bash /koch/vm/integration/assert_idempotent.sh")
   end
 end
 

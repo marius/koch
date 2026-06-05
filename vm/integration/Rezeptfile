@@ -1,0 +1,81 @@
+# frozen_string_literal: true
+
+# Integration test Rezeptfile — applied by `vm/koch-vm test`.
+# Covers every resource type with assertable, side-effect-free targets.
+# All paths use /tmp/koch-test/ or the name prefix koch-test-*.
+
+# Group must come before user: useradd --gid 9876 requires the group to exist.
+group "koch-test-group" do
+  gid 9876
+end
+
+user "koch-test-user" do
+  uid 9876
+  gid 9876
+  home "/nonexistent"
+  shell "/usr/sbin/nologin"
+end
+
+# Packages — bc is tiny and absent from all four cloud images.
+# nano is pre-installed on Debian/Ubuntu cloud images; delete it.
+package "bc"
+
+delete do
+  package "nano"
+end
+
+# Snap (snapd is present on Ubuntu only).
+snap_package "hello" if ubuntu?
+
+# File with known contents and explicit permissions.
+file "/tmp/koch-test/myfile" do
+  contents "hello integration\n"
+  mode "0640"
+end
+
+# Directory with explicit permissions.
+directory "/tmp/koch-test/mydir" do
+  mode "0750"
+end
+
+# Run — guarded so the Rezeptfile is idempotent on re-apply.
+run "touch /tmp/koch-test/run-was-here" unless File.exist?("/tmp/koch-test/run-was-here")
+
+# Delete pre-seeded targets (vm/koch-vm test seeds these before calling apply).
+delete do
+  file "/tmp/koch-test/to-delete"
+  directory "/tmp/koch-test/to-delete-dir"
+end
+
+# Swapfile — use the root filesystem, not /tmp (which may be tmpfs).
+swapfile "/swapfile-integration-test" do
+  size "64M"
+end
+
+# Systemd service.
+systemd_service "koch-test-dummy" do
+  contents <<~UNIT
+    [Unit]
+    Description=Koch integration test dummy
+
+    [Service]
+    Type=oneshot
+    ExecStart=/bin/true
+    RemainAfterExit=yes
+
+    [Install]
+    WantedBy=multi-user.target
+  UNIT
+end
+
+# Systemd timer service.
+systemd_timer_service "koch-test-timer" do
+  contents <<~UNIT
+    [Unit]
+    Description=Koch integration test timer
+
+    [Service]
+    Type=oneshot
+    ExecStart=/bin/true
+  UNIT
+end
